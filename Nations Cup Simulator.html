@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nations Cup Simulator</title>
+<style>
+:root{color-scheme:light dark;--bg:#f3f6f3;--card:#fff;--tx:#14201a;--mu:#64756b;--ac:#12804a;--bd:#dbe3dd;--hi:#e3f3ea;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1713;--card:#18231d;--tx:#e8f0ea;--mu:#8fa398;--ac:#3ccf85;--bd:#2a3a31;--hi:#1f3a2b}}
+:root[data-theme="dark"]{--bg:#0f1713;--card:#18231d;--tx:#e8f0ea;--mu:#8fa398;--ac:#3ccf85;--bd:#2a3a31;--hi:#1f3a2b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+#app{max-width:860px;margin:0 auto;padding:16px}
+h1{font-size:24px;margin:8px 0}h2{font-size:17px;margin:0 0 10px}h3{font-size:14px;margin:14px 0 6px;color:var(--mu);text-transform:uppercase;letter-spacing:.04em}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin:12px 0}
+.mu,small{color:var(--mu)}.row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--bd);flex-wrap:wrap}
+label{display:block;margin:10px 0;font-size:13px;color:var(--mu)}input,select,textarea{display:block;width:100%;margin-top:4px;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}
+input[type=checkbox]{width:auto;display:inline;margin-right:6px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0 12px}
+button{background:var(--ac);color:#fff;border:0;border-radius:8px;padding:8px 12px;font:inherit;font-weight:600;cursor:pointer}
+button.g{background:transparent;color:var(--ac);border:1px solid var(--bd)}button.s{padding:4px 10px;font-size:13px}
+.bar{display:flex;gap:8px;flex-wrap:wrap}.tw{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:5px 6px;text-align:center;border-bottom:1px solid var(--bd)}th:nth-child(2),td:nth-child(2){text-align:left}
+tr.q td{background:var(--hi)}.me{font-weight:700;color:var(--ac)}
+.m{padding:8px 0;border-bottom:1px solid var(--bd)}.mh{display:grid;grid-template-columns:1fr auto 1fr auto;gap:8px;align-items:center}
+.mh span:first-child{text-align:right}.sc{font-weight:700;min-width:54px;text-align:center}
+.gl{font-size:12px;color:var(--mu);margin-top:3px}.up{color:#d97706;font-weight:700;font-size:12px}
+.champ{font-size:20px;font-weight:700;text-align:center;background:var(--hi)}
+.rf{background:var(--bg);border-radius:8px;padding:10px;margin-top:8px}
+</style></head><body><div id="app"></div>
+<script>
+const RAW={
+UEFA:"Spain:90,France:89,England:88,Portugal:87,Germany:86,Netherlands:85,Italy:84,Croatia:82,Belgium:82,Denmark:79,Switzerland:79,Austria:78,Turkey:77,Norway:76,Ukraine:76,Serbia:75,Poland:75,Scotland:74,Hungary:74,Czechia:73,Sweden:73,Greece:72,Romania:72,Slovakia:71",
+CONMEBOL:"Argentina:91,Brazil:88,Uruguay:85,Colombia:85,Ecuador:78,Paraguay:75,Chile:73,Peru:71,Venezuela:71,Bolivia:66",
+CONCACAF:"USA:80,Mexico:80,Canada:76,Panama:72,Costa Rica:70,Jamaica:70,Honduras:66,El Salvador:62,Haiti:62,Curacao:60,Guatemala:60,Trinidad and Tobago:58",
+AFC:"Japan:82,Iran:80,South Korea:80,Australia:77,Saudi Arabia:72,Qatar:71,Uzbekistan:71,Iraq:70,Jordan:70,UAE:68,Oman:65,China:64,Syria:64,Bahrain:63,Indonesia:62,Palestine:62,North Korea:61,Kyrgyzstan:60,Tajikistan:60,Thailand:58,Vietnam:58,Kuwait:58,India:56,Lebanon:56",
+CAF:"Morocco:83,Senegal:80,Ivory Coast:77,Nigeria:76,Egypt:76,Algeria:75,Tunisia:74,Cameroon:74,Mali:73,Ghana:72,DR Congo:70,Burkina Faso:70,South Africa:69,Cape Verde:67,Guinea:65,Angola:64,Zambia:64,Gabon:63,Uganda:60,Benin:60,Mozambique:60,Namibia:58,Tanzania:58,Mauritania:58",
+OFC:"New Zealand:62,Fiji:45,Solomon Islands:45,New Caledonia:44,Tahiti:42,Vanuatu:42,Papua New Guinea:40,Samoa:35"};
+const C={},LK={};
+for(const k in RAW){C[k]=RAW[k].split(',').map(x=>{const i=x.lastIndexOf(':');return[x.slice(0,i),+x.slice(i+1)]});C[k].forEach(([n,r])=>LK[n.toLowerCase()]=r)}
+C["World (top 32)"]=Object.values(C).flat().sort((a,b)=>b[1]-a[1]).slice(0,32);
+const $=id=>document.getElementById(id),rnd=Math.random;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let S=[],T=null,openRep=-1;
+function save(){try{localStorage.setItem('nsim',JSON.stringify(S))}catch(e){}}
+try{S=JSON.parse(localStorage.getItem('nsim')||'[]')}catch(e){S=[]}
+const pois=l=>{const L=Math.exp(-l);let k=0,p=1;do{k++;p*=rnd()}while(p>L);return k-1};
+const gauss=()=>Math.sqrt(-2*Math.log(1-rnd()))*Math.cos(2*Math.PI*rnd());
+const FN="Luca Marco Jonas Karim Omar Diego Mateo Kenji Min-jun Ali Yusuf Andre Felix Hugo Samuel Ivan Mehdi Tomas Elias Bruno Rafael Nico Sami Daniel".split(' ');
+const LN="Silva Rossi Muller Costa Diaz Hassan Tanaka Kim Novak Petrov Jensen Moreau Santos Ortiz Haddad Ibrahim Lopez Walker Bianchi Kovac Sato Nasser Mendes Olsen Torres Vidal Reyes Dubois".split(' ');
+const pos=i=>i<2?'GK':i<8?'DEF':i<14?'MID':'FWD',W={GK:.02,DEF:.8,MID:2.5,FWD:5};
+function mkSquad(lines){const sq=[],used=new Set();
+ (lines||[]).forEach(l=>{const[n,p]=l.split(',').map(x=>x.trim());if(n&&!used.has(n)){used.add(n);sq.push({n,p:(p||'MID').toUpperCase()})}});
+ while(sq.length<20){const n=FN[rnd()*FN.length|0]+' '+LN[rnd()*LN.length|0];if(used.has(n))continue;used.add(n);sq.push({n,p:pos(sq.length)})}
+ if(!sq.some(p=>p.p=='GK')){let n;do{n=FN[rnd()*FN.length|0]+' '+LN[rnd()*LN.length|0]}while(used.has(n));sq.push({n,p:'GK'})}return sq}
+function pick(sq){const w=sq.map(p=>W[p.p]??2.5);let r=rnd()*w.reduce((a,b)=>a+b,0);for(let i=0;i<sq.length;i++){r-=w[i];if(r<=0)return sq[i].n}return sq[0].n}
+const WA={GK:0,DEF:1.2,MID:4,FWD:3};
+function pickA(sq,ex){if(rnd()<.15)return null;const c=sq.filter(p=>p.n!=ex),w=c.map(p=>WA[p.p]??3);let r=rnd()*w.reduce((a,b)=>a+b,0);for(let i=0;i<c.length;i++){r-=w[i];if(r<=0)return c[i].n}return null}
+function addG(m,t,n,lo,hi){for(let i=0;i<n;i++){const sq=T.teams[t].sq,p=pick(sq);m.goals.push({t,p,a:pickA(sq,p),m:lo+(rnd()*(hi-lo+1)|0)})}}
+function simM(m){const f=T.fmt,d=T.teams[m.h].r-T.teams[m.a].r;
+ let lh=1.3*Math.exp(d/90+.2*gauss()),la=1.3*Math.exp(-d/90+.2*gauss());
+ if(Math.abs(d)>6&&rnd()<.08){if(d>0){lh*=.45;la*=2}else{la*=.45;lh*=2}} // shock result
+ const sc=f.min/90;m.goals=[];m.sh=pois(lh*sc);m.sa=pois(la*sc);addG(m,m.h,m.sh,1,f.min);addG(m,m.a,m.sa,1,f.min);
+ if(m.s=='K'&&m.sh==m.sa){
+  if(f.et>0){const eh=pois(lh*f.et/90*.8),ea=pois(la*f.et/90*.8);addG(m,m.h,eh,f.min+1,f.min+f.et);addG(m,m.a,ea,f.min+1,f.min+f.et);m.sh+=eh;m.sa+=ea;m.et=1}
+  if(m.sh==m.sa){if(f.pens){let a=0,b=0;for(let i=0;i<5;i++){if(rnd()<.76)a++;if(rnd()<.76)b++}while(a==b){if(rnd()<.76)a++;if(rnd()<.76)b++}m.pen=[a,b]}else m.w=rnd()<.5?m.h:m.a}}
+ m.goals.sort((a,b)=>a.m-b.m);m.done=1}
+const win=m=>m.sh>m.sa?m.h:m.sa>m.sh?m.a:m.pen?(m.pen[0]>m.pen[1]?m.h:m.a):m.w;
+function parseTeams(){const seen=new Set(),out=[];
+ ($('tt').value.split('\n')).map(l=>l.trim()).filter(Boolean).forEach(l=>{const x=l.match(/^(.*?)\s*[,:]\s*(\d{1,2})$/),n=x?x[1]:l;if(seen.has(n.toLowerCase()))return;seen.add(n.toLowerCase());out.push({n,r:x?+x[2]:(LK[n.toLowerCase()]||65)})});return out}
+function preset(){const v=$('pc').value;if(v)$('tt').value=C[v].map(x=>x[0]+', '+x[1]).join('\n');fillMy()}
+function fillMy(){const sel=$('tm'),old=sel.value;sel.innerHTML='<option value="">(none - spectator)</option>'+parseTeams().map(t=>`<option value="${esc(t.n)}">${esc(t.n)}</option>`).join('');sel.value=old}
+function table(gi){const g=T.groups[gi],r={};g.t.forEach(i=>r[i]={i,p:0,w:0,d:0,l:0,gf:0,ga:0,pts:0});
+ T.m.filter(m=>m.s=='G'&&m.g==gi&&m.done).forEach(m=>{const a=r[m.h],b=r[m.a];a.p++;b.p++;a.gf+=m.sh;a.ga+=m.sa;b.gf+=m.sa;b.ga+=m.sh;
+  if(m.sh>m.sa){a.w++;b.l++;a.pts+=3}else if(m.sh<m.sa){b.w++;a.l++;b.pts+=3}else{a.d++;b.d++;a.pts++;b.pts++}});
+ return Object.values(r).sort((x,y)=>y.pts-x.pts||(y.gf-y.ga)-(x.gf-x.ga)||y.gf-x.gf||T.teams[y.i].r-T.teams[x.i].r)}
+const order=n=>{let o=[0];while(o.length<n){const L=o.length*2;o=o.flatMap(s=>[s,L-1-s])}return o};
+function startRound(s){const n=s.length,nm=n==2?'Final':n==4?'Semi-finals':n==8?'Quarter-finals':'Round of '+n,p=[];
+ for(let i=0;i<n;i+=2){const a=s[i],b=s[i+1],o={a,b,m:-1};
+  if(a==null||b==null)o.w=a==null?b:a;else{T.m.push({s:'K',r:nm,h:a,a:b,done:0,goals:[]});o.m=T.m.length-1}p.push(o)}
+ T.ko.push({n:nm,p})}
+function startKO(seeds){let B=2;while(B<seeds.length)B*=2;startRound(order(B).map(s=>s<seeds.length?seeds[s]:null))}
+function adv(){
+ if(T.phase=='G'){if(T.m.some(m=>!m.done))return;const f=T.fmt,q=[],w=[];
+  T.groups.forEach((g,gi)=>table(gi).forEach((r,k)=>{r.k=k;if(k<f.adv)q.push(r);else if(k==f.adv)w.push(r)}));
+  const cmp=(x,y)=>x.k-y.k||y.pts-x.pts||(y.gf-y.ga)-(x.gf-x.ga)||y.gf-x.gf;
+  w.sort(cmp).slice(0,f.wc).forEach(r=>q.push(r));q.sort(cmp);T.phase='K';T.ko=[];startKO(q.map(r=>r.i))}
+ while(T.phase=='K'){const R=T.ko[T.ko.length-1];if(R.p.some(p=>p.m>=0&&!T.m[p.m].done))return;
+  R.p.forEach(p=>{if(p.m>=0)p.w=win(T.m[p.m])});const ws=R.p.map(p=>p.w);
+  if(ws.length==1){T.phase='D';T.champ=ws[0];return}startRound(ws)}}
+function pendIdx(){if(T.phase=='G')return T.m.map((m,i)=>m.done?-1:i).filter(i=>i>=0);
+ if(T.phase=='K')return T.ko[T.ko.length-1].p.map(p=>p.m).filter(i=>i>=0&&!T.m[i].done);return[]}
+const done=()=>{adv();save();render()};
+function simOne(i){simM(T.m[i]);openRep=-1;done()}
+function simStage(skip){pendIdx().forEach(i=>{const m=T.m[i];if(skip&&(m.h==T.mine||m.a==T.mine))return;simM(m)});done()}
+function simAll(){for(let k=0;k<30&&T.phase!='D';k++)pendIdx().forEach(i=>simM(T.m[i])),adv();openRep=-1;save();render()}
+function scorers(gl,t,n,txt){let L=[];
+ txt.split(',').map(x=>x.trim()).filter(Boolean).forEach(x=>{let k=1,as='';const am=x.match(/^(.*?)\s*\(\s*([^)\d][^)]*)\)$/);if(am){x=am[1];as=am[2].trim()}const mm=x.match(/^(.*?)\s*(?:x|\(|\*)\s*(\d+)\)?$/i);if(mm){x=mm[1];k=+mm[2]}for(let j=0;j<k;j++)L.push({x,as})});
+ if(L.length>n){alert('More scorers than goals for '+T.teams[t].n);return false}
+ const sq=T.teams[t].sq,fp=(x,ps)=>{let p=sq.find(q=>q.n.toLowerCase()==x.toLowerCase());if(!p){p={n:x,p:ps};sq.push(p)}return p.n};L=L.map(o=>({p:fp(o.x,'FWD'),a:o.as?fp(o.as,'MID'):null}));
+ while(L.length<n)L.push({p:pick(sq),a:null});L.forEach(o=>gl.push({t,p:o.p,a:o.a||pickA(sq,o.p),m:1+(rnd()*T.fmt.min|0)}));return true}
+function report(i){const m=T.m[i],v=id=>$(id).value;
+ if(v('rh')===''||v('ra')===''){alert('Enter both scores');return}
+ const sh=+v('rh'),sa=+v('ra'),gl=[];if(sh<0||sa<0)return;
+ if(!scorers(gl,m.h,sh,v('sch'))||!scorers(gl,m.a,sa,v('sca')))return;
+ if(m.s=='K'&&sh==sa){if(!v('rw')){alert('Level knockout match: choose who won (penalties)');return}
+  m.w=+v('rw');if(v('ph')!==''&&v('pa')!==''){const a=+v('ph'),b=+v('pa');if(a!=b){m.pen=[a,b];m.w=a>b?m.h:m.a}}}
+ gl.sort((a,b)=>a.m-b.m);m.goals=gl;m.sh=sh;m.sa=sa;m.done=1;openRep=-1;done()}
+function create(){const teams=parseTeams(),v=id=>$(id).value,n=teams.length;
+ const fmt={min:Math.max(2,+v('fm')||90),et:Math.max(0,+v('fe')||0),pens:$('fp').checked,gs:Math.max(1,+v('fg')||4),adv:Math.max(1,+v('fa')||2),wc:Math.max(0,+v('fw')||0)};
+ if(n<2){alert('Enter at least 2 teams (one per line).');return}
+ fmt.gs=Math.min(fmt.gs,n);const ng=Math.ceil(n/fmt.gs);
+ if(fmt.gs>1&&ng*Math.min(fmt.adv,fmt.gs)+fmt.wc<2){alert('Settings leave fewer than 2 qualifiers.');return}
+ const mine=teams.findIndex(t=>t.n==v('tm')),sqL=v('sq').split('\n').map(l=>l.trim()).filter(Boolean);
+ T={id:Date.now(),name:v('tn')||'Tournament',fmt,teams:teams.map((t,i)=>({n:t.n,r:t.r,sq:mkSquad(i==mine?sqL:null)})),mine,m:[],groups:[],ko:[],phase:'G',champ:null};
+ const idx=teams.map((_,i)=>i).sort((a,b)=>teams[b].r-teams[a].r);
+ if(fmt.gs>1){for(let k=0;k<ng;k++)T.groups.push({t:[]});
+  for(let p=0;p<n;p+=ng){const pot=idx.slice(p,p+ng).sort(()=>rnd()-.5);pot.forEach((t,k)=>T.groups[k].t.push(t))}
+  T.groups.forEach((g,gi)=>{for(let i=0;i<g.t.length;i++)for(let j=i+1;j<g.t.length;j++){const sw=rnd()<.5;T.m.push({s:'G',g:gi,h:g.t[sw?j:i],a:g.t[sw?i:j],done:0,goals:[]})}})}
+ else{T.phase='K';startKO(idx)}
+ S.push(T);adv();save();openRep=-1;render()}
+const goalTxt=(m,t)=>m.goals.filter(g=>g.t==t).map(g=>esc(g.p)+' '+g.m+"'"+(g.a?` <small>(ast. ${esc(g.a)})</small>`:'')).join('; ');
+function awardsHTML(){const sc={},as={},gk={};
+ T.m.forEach(m=>{if(!m.done)return;m.goals.forEach(g=>{const k=g.t+'|'+g.p;sc[k]=(sc[k]||0)+1;if(g.a){const q=g.t+'|'+g.a;as[q]=(as[q]||0)+1}});
+  [[m.h,m.sa],[m.a,m.sh]].forEach(([t,c])=>{const o=gk[t]=gk[t]||{t,p:0,c:0,cs:0};o.p++;o.c+=c;if(!c)o.cs++})});
+ const ks=[...new Set([...Object.keys(sc),...Object.keys(as)])].map(k=>({k,g:sc[k]||0,a:as[k]||0}));
+ const nm=k=>{const i=k.indexOf('|');return[esc(k.slice(i+1)),esc(T.teams[k.slice(0,i)].n)]};
+ const boot=[...ks].sort((x,y)=>y.g-x.g||y.a-x.a).slice(0,10),pm=[...ks].sort((x,y)=>y.a-x.a||y.g-x.g).filter(x=>x.a>0).slice(0,10);
+ const gl=Object.values(gk).sort((x,y)=>y.cs-x.cs||x.c/x.p-y.c/y.p||y.p-x.p).slice(0,10);
+ const gkn=t=>esc(T.teams[t].sq.find(p=>p.p=='GK')?.n||'Goalkeeper');
+ const tbl=(ti,hd,rows)=>rows.length?`<div class="card"><h2>${ti}</h2><div class="tw"><table><tr><th>#</th><th>Player</th><th>Team</th>${hd}</tr>${rows.map((r,i)=>`<tr><td>${i+1}</td><td>${r[0]}</td><td>${r[1]}</td>${r[2]}</tr>`).join('')}</table></div></div>`:'';
+ let h='';
+ if(T.phase=='D'&&boot.length){const b=nm(boot[0].k),g=gl[0];h+=`<div class="card"><h2>🏅 Tournament awards</h2><div>Golden Boot: <b>${b[0]}</b> (${b[1]}) - ${boot[0].g} goals</div>${pm[0]?`<div>Playmaker: <b>${nm(pm[0].k)[0]}</b> (${nm(pm[0].k)[1]}) - ${pm[0].a} assists</div>`:''}<div>Golden Glove: <b>${gkn(g.t)}</b> (${esc(T.teams[g.t].n)}) - ${g.cs} clean sheets, ${g.c} conceded</div></div>`}
+ h+=tbl('Golden Boot race','<th>Goals</th><th>Ast</th>',boot.map(x=>[...nm(x.k),`<td><b>${x.g}</b></td><td>${x.a}</td>`]));
+ h+=tbl('Playmaker race (assists)','<th>Ast</th><th>Goals</th>',pm.map(x=>[...nm(x.k),`<td><b>${x.a}</b></td><td>${x.g}</td>`]));
+ h+=tbl('Golden Glove race (goalkeepers)','<th>CS</th><th>GA</th><th>P</th>',gl.map(o=>[gkn(o.t),esc(T.teams[o.t].n),`<td><b>${o.cs}</b></td><td>${o.c}</td><td>${o.p}</td>`]));
+ return h}
+function mrow(i){const m=T.m[i],H=T.teams[m.h],A=T.teams[m.a],mine=m.h==T.mine||m.a==T.mine,nm=(t,x)=>`<span class="${x==T.mine?'me':''}">${esc(t.n)}</span>`;
+ let ex='',up='';
+ if(m.done){if(m.et)ex+=' <small>aet</small>';if(m.pen)ex+=` <small>(${m.pen[0]}-${m.pen[1]} pens)</small>`;else if(m.s=='K'&&m.sh==m.sa)ex+=` <small>(${esc(T.teams[win(m)].n)} advance)</small>`;
+  const w=win(m),l=w==m.h?m.a:m.h;if(T.teams[w].r<T.teams[l].r-6)up=' <span class="up">⚡ SHOCK</span>'}
+ let h=`<div class="m"><div class="mh">${nm(H,m.h)}<span class="sc">${m.done?m.sh+' - '+m.sa:'vs'}</span>${nm(A,m.a)}<span>${m.done?'':`<button class="s" onclick="simOne(${i})">Sim</button> `+(mine?`<button class="s g" onclick="openRep=${i};render()">Report</button>`:'')}</span></div>`;
+ if(m.done)h+=`<div class="gl" style="text-align:center">${ex}${up}</div>`+[m.h,m.a].map(t=>m.goals.some(g=>g.t==t)?`<div class="gl"><b>${esc(T.teams[t].n)}</b>: ${goalTxt(m,t)}</div>`:'').join('');
+ if(openRep==i&&!m.done)h+=`<div class="rf"><b>Report your match</b><div class="grid"><label>${esc(H.n)} goals<input id="rh" type="number" min="0"></label><label>${esc(A.n)} goals<input id="ra" type="number" min="0"></label></div>
+  <label>${esc(H.n)} scorers (comma separated, e.g. "Salah x2, Mane")<input id="sch"></label><label>${esc(A.n)} scorers<input id="sca"></label>
+  ${m.s=='K'?`<div class="grid"><label>If level - winner<select id="rw"><option value="">-</option><option value="${m.h}">${esc(H.n)}</option><option value="${m.a}">${esc(A.n)}</option></select></label><label>Pens ${esc(H.n)} (optional)<input id="ph" type="number" min="0"></label><label>Pens ${esc(A.n)} (optional)<input id="pa" type="number" min="0"></label></div>`:''}
+  <small>Add assists in brackets: "Salah (Mane)" or "Salah x2 (Mane)". Goals or assists you leave out are filled in automatically. Include extra-time goals in the score.</small><div class="bar" style="margin-top:8px"><button onclick="report(${i})">Save result</button><button class="g" onclick="openRep=-1;render()">Cancel</button></div></div>`;
+ return h+'</div>'}
+function viewT(){const f=T.fmt;let h=`<button class="g" onclick="T=null;render()">← All tournaments</button><h1>${esc(T.name)}</h1>
+ <p class="mu">${f.min} min · ${f.et?'extra time '+f.et+' min':'no extra time'} · ${f.pens?'penalties':'coin toss if level'} · ${T.groups.length?`groups of ~${f.gs}, top ${f.adv}${f.wc?' + '+f.wc+' best next-placed':''} advance`:'straight knockout'} · You: ${T.mine>=0?esc(T.teams[T.mine].n):'spectator'}</p>`;
+ if(T.phase=='D')h+=`<div class="card champ">🏆 Champions: ${esc(T.teams[T.champ].n)}</div>`;
+ else{h+=`<div class="card"><h2>${T.phase=='G'?'Group stage':esc(T.ko[T.ko.length-1].n)}</h2><div class="bar"><button onclick="simStage(true)">Sim stage (skip my matches)</button><button class="g" onclick="simStage(false)">Sim stage (incl. mine)</button><button class="g" onclick="simAll()">Sim whole tournament</button></div></div>`;
+  const mi=pendIdx().find(i=>T.m[i].h==T.mine||T.m[i].a==T.mine);if(mi!=null)h+=`<div class="card"><h2>Your next match</h2>${mrow(mi)}</div>`}
+ T.groups.forEach((g,gi)=>{h+=`<div class="card"><h2>Group ${String.fromCharCode(65+gi)}</h2><div class="tw"><table><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th></tr>`+
+  table(gi).map((r,k)=>`<tr class="${k<f.adv?'q':''}"><td>${k+1}</td><td class="${r.i==T.mine?'me':''}">${esc(T.teams[r.i].n)}</td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf}</td><td>${r.ga}</td><td>${r.gf-r.ga}</td><td><b>${r.pts}</b></td></tr>`).join('')+'</table></div>'+
+  T.m.map((m,i)=>m.s=='G'&&m.g==gi?mrow(i):'').join('')+'</div>'});
+ T.ko.forEach(R=>{h+=`<div class="card"><h2>${esc(R.n)}</h2>`+R.p.map(p=>p.m>=0?mrow(p.m):`<div class="m"><span class="${p.w==T.mine?'me':''}">${esc(T.teams[p.w].n)}</span> <small>- bye</small></div>`).join('')+'</div>'});
+ const sc={};T.m.forEach(m=>m.goals.forEach(g=>{const k=g.t+'|'+g.p;sc[k]=(sc[k]||0)+1}));
+ const top=Object.entries(sc).sort((a,b)=>b[1]-a[1]).slice(0,15);
+ if(0)h+=`<div class="card"><h2>Top scorers</h2><div class="tw"><table><tr><th>#</th><th>Player</th><th>Team</th><th>Goals</th></tr>${top.map(([k,n],i)=>{const[t,p]=[k.split('|')[0],k.slice(k.indexOf('|')+1)];return`<tr><td>${i+1}</td><td>${esc(p)}</td><td>${esc(T.teams[t].n)}</td><td><b>${n}</b></td></tr>`}).join('')}</table></div></div>`;
+ return h+awardsHTML()}
+function home(){return`<h1>⚽ Nations Cup Simulator</h1><p class="mu">National teams only. Results are stat-based (team ratings) with occasional shock upsets.</p>
+ <div class="card"><h2>Your tournaments</h2>${S.length?S.map((t,i)=>`<div class="row"><span><b>${esc(t.name)}</b> <small>${t.teams.length} teams · ${t.phase=='D'?'🏆 '+esc(t.teams[t.champ].n):'in progress'}</small></span><span><button class="s" onclick="T=S[${i}];openRep=-1;render()">Open</button> <button class="s g" onclick="if(confirm('Delete?')){S.splice(${i},1);save();render()}">Delete</button></span></div>`).join(''):'<p class="mu">None yet.</p>'}</div>
+ <div class="card"><h2>New tournament</h2><label>Name<input id="tn" value="World Nations Cup"></label>
+ <label>Preset (confederation)<select id="pc" onchange="preset()"><option value="">Custom</option>${Object.keys(C).map(k=>`<option>${k}</option>`).join('')}</select></label>
+ <label>Teams - one per line. Optional rating after a comma (1-99) = team strength; bigger gap = stronger favourite. Unknown teams default to 65<textarea id="tt" rows="9" oninput="fillMy()" placeholder="Brazil&#10;Japan, 82&#10;Egypt"></textarea></label>
+ <label>Your team<select id="tm"></select></label>
+ <label>Your squad (optional; one per line, e.g. "Mo Salah, FWD". Others are generated)<textarea id="sq" rows="3"></textarea></label>
+ <div class="grid"><label>Minutes per match<input id="fm" type="number" value="90"></label><label>Extra time minutes (0 = none)<input id="fe" type="number" value="30"></label>
+ <label>Group size (1 = straight knockout)<input id="fg" type="number" value="4"></label><label>Advance per group<input id="fa" type="number" value="2"></label><label>Extra best next-placed advancing<input id="fw" type="number" value="0"></label></div>
+ <label><input id="fp" type="checkbox" checked>Penalty shootout if still level (otherwise coin toss)</label><button onclick="create()">Create tournament</button></div>`}
+function render(){$('app').innerHTML=T?viewT():home();if(!T)fillMy();window.scrollTo(0,0)}
+render();
+</script></body></html>
